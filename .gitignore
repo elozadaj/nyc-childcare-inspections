@@ -1,5 +1,6 @@
 # Auto generated .pem file
 config/ec2-keypair.pem
+config/key-dohmh-nyc.pem
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
