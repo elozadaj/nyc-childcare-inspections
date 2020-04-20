@@ -18,4 +18,4 @@ Run config/run.sh
 
 This script creates all AWS resources necessary for ETL operations and predictions. 
 
-[AWS Infrastructure](docs/aws_infrastructure.png)
+![AWS Infrastructure](docs/aws_infrastructure.png)
