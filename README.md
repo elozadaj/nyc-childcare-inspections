@@ -3,12 +3,14 @@ Project for data product subject - ITAM master in data science.
 
 ## Prerequisites
 
+Install jq (brew install jq)
+
 Install python 3.6+
 
-Install AWS CLI and python Boto3 library - pip install awscli boto3
-(For more information: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-set-up.html)
+Install AWS CLI and python Boto3 library (pip install awscli boto3)
+For more information: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-set-up.html
 
-Set up your AWS credentials - aws configure
+Set up your AWS credentials (aws configure)
 
 ## Project set up
 

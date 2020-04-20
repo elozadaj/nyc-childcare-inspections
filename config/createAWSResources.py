@@ -1,29 +1,15 @@
 import boto3
+import sys
 
 ec2 = boto3.resource('ec2')
 
 
 # Create VPC
 vpc = ec2.create_vpc(CidrBlock='10.0.0.0/16')
-vpc.create_tags(Tags=[{"Key": "Name", "Value": "vpc-dohmh-nyc"}])
+vpc.create_tags(Tags=[{"Key": "Name", "Value": "vpc_dohmh_nyc"}])
 vpc.wait_until_available()
 
 print("VPC created ...")
-
-# Create and attach internet gateway to VPC
-internet_gateway = ec2.create_internet_gateway()
-vpc.attach_internet_gateway(InternetGatewayId=internet_gateway.id)
-
-print("Internet gateway created and associated with VPC ...")
-
-# Create a route table and a public route
-route_table = vpc.create_route_table()
-route = route_table.create_route(
-    DestinationCidrBlock='0.0.0.0/0',
-    GatewayId=internet_gateway.id
-)
-print("Route table created and associated with Internet Gateway...")
-
 
 # Create private subnet
 private_subnet = vpc.create_subnet(CidrBlock='10.0.0.0/24')
@@ -31,10 +17,23 @@ private_subnet = vpc.create_subnet(CidrBlock='10.0.0.0/24')
 # Create public subnet
 public_subnet = vpc.create_subnet(CidrBlock='10.0.1.0/24')
 
+print("Public and private subnets created ...")
+
+# Create and attach internet gateway to VPC
+internet_gateway = ec2.create_internet_gateway()
+vpc.attach_internet_gateway(InternetGatewayId=internet_gateway.id)
+
+# Create a route table and a public route
+route_table = vpc.create_route_table()
+route = route_table.create_route(
+    DestinationCidrBlock='0.0.0.0/0',
+    GatewayId=internet_gateway.id
+)
+
 # Associate the route table with the public subnet
 route_table.associate_with_subnet(SubnetId=public_subnet.id)
 
-print("Public and private subnets created ...")
+print("Public subnet reachable from external network  ...")
 
 # Create security groups
 
@@ -59,9 +58,10 @@ print("Security groups created ...")
 
 
 # Create bastion
-BASTION_AMI = 'ami-0e01ce4ee18447327' # Amazon Linux 2 AMI
+#BASTION_AMI = 'ami-0e01ce4ee18447327' # Amazon Linux 2 AMI
+BASTION_AMI = 'ami-0fc20dd1da406780b' # Ubuntu AMI
 BASTION_TYPE = 't2.micro'
-KEY_NAME = 'key-dohmh-nyc'
+KEY_NAME = 'key_dohmh_nyc'
 
 ec2_instances = ec2.create_instances(
     ImageId = BASTION_AMI,
@@ -109,6 +109,13 @@ response = client.associate_address(
     AllocationId=elastic_ip['AllocationId'],
     InstanceId=bastion.id
 )
+
+# Write elastic_ip to a file
+try:
+    with open('bastion_data.json', 'w') as file:
+        file.write('{"elastic_ip": "' + elastic_ip['PublicIp'] + '"}\n');
+except (OSError, ValueError):  # file does not exist or is empty/invalid
+    sys.exit('Error while saving bastion elastic ip into bastion_data.json')
 
 print("Elastic IP created and associated to bastion")
 

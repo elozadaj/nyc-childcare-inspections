@@ -1,7 +1,7 @@
 import boto3
 from botocore.exceptions import ClientError
 
-KEY_NAME = 'key-dohmh-nyc'
+KEY_NAME = 'key_dohmh_nyc'
 ec2 = boto3.client('ec2')
 
 try:
@@ -18,7 +18,7 @@ except:
 privateKey = str(keyPair['KeyMaterial'])
 
 try:
-    pemFile = open('key-dohmh-nyc.pem','w')
+    pemFile = open('key_dohmh_nyc.pem','w')
     pemFile.write(privateKey)
 except:
-	print('Couldn\'t write to ec2-keypair.pem')
+	print('Couldn\'t write to key_dohmh_nyc.pem')

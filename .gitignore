@@ -1,6 +1,8 @@
 # Auto generated .pem file
 config/ec2-keypair.pem
 config/key-dohmh-nyc.pem
+config/bastion_data.json
+config/key_dohmh_nyc.pem
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
