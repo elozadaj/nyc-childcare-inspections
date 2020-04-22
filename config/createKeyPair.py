@@ -22,3 +22,5 @@ try:
     pemFile.write(privateKey)
 except:
 	print('Couldn\'t write to key_dohmh_nyc.pem')
+
+print('Key pair created ...')

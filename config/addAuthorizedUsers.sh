@@ -6,21 +6,27 @@ ssh -i "key_dohmh_nyc.pem" ubuntu@$BASTION_IP << EOF
 
 sudo adduser ely --gecos " , , , " --disabled-password
 echo "ely:ely" | sudo chpasswd
+sudo usermod -aG sudo ely
 
 sudo adduser eddie --gecos " , , , " --disabled-password
 echo "eddie:eddie" | sudo chpasswd
+sudo usermod -aG sudo eddie
 
 sudo adduser karla --gecos " , , , " --disabled-password
 echo "karla:karla" | sudo chpasswd
+sudo usermod -aG sudo karla
 
 sudo adduser leo --gecos " , , , " --disabled-password
 echo "leo:leo" | sudo chpasswd
+sudo usermod -aG sudo leo
 
 sudo adduser mathus --gecos " , , , " --disabled-password
 echo "mathus:mathus" | sudo chpasswd
+sudo usermod -aG sudo mathus
 
 sudo adduser liliana --gecos " , , , " --disabled-password
 echo "liliana:liliana" | sudo chpasswd
+sudo usermod -aG sudo liliana
 
 sudo sed -i 's|#PubkeyAuthentication yes|PubkeyAuthentication yes|g' /etc/ssh/sshd_config
 sudo sed -i 's|PasswordAuthentication no|PasswordAuthentication yes|g' /etc/ssh/sshd_config
@@ -43,3 +49,18 @@ sudo sed -i 's|PasswordAuthentication yes|PasswordAuthentication no|g' /etc/ssh/
 sudo service sshd restart
 
 EOF
+
+# Copying the pem file into the bastion.
+scp -i ./key_dohmh_nyc.pem key_dohmh_nyc.pem ubuntu@$BASTION_IP:/home/ubuntu/key_dohmh_nyc.pem
+
+
+#ssh -i "key_dohmh_nyc.pem" ubuntu@$BASTION_IP << EOF
+#ssh -i "key_dohmh_nyc.pem" ubuntu@$BASTION_IP << EOF
+#sudo apt-get update
+#sudo apt install postgresql-client-common
+#sudo apt-get install postgresql-client
+
+#psql -h hostname -p portNumber -U userName dbName -W
+
+#EOF
+#EOF
