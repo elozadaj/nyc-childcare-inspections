@@ -3,18 +3,20 @@ Project for data product subject - ITAM master in data science.
 
 ## Prerequisites
 
-Install jq (brew install jq)
+[Install jq](https://stedolan.github.io/jq/download/)
 
-Install python 3.6+
+[Install python 3.6+](https://www.python.org/downloads/)
 
-Install AWS CLI and python Boto3 library (pip install awscli boto3)
-For more information: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-set-up.html
+[Install AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-set-up.html)
 
-Set up your AWS credentials (aws configure)
+[Install Boto3 library](https://pypi.org/project/boto3/)
+
+[Set up your AWS credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html)
 
 ## Project set up
 
-Run config/run.sh
+1) Go to /config directory
+2) Run ./run.sh
 
 This script creates all AWS resources necessary for ETL operations and predictions. 
 
