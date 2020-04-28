@@ -15,32 +15,63 @@ vpc.wait_until_available()
 print("VPC created ...")
 
 ###############################################################################
-# Create private subnet
+# Create public subnet
 public_subnet = vpc.create_subnet(CidrBlock='10.0.0.0/24')
-private_subnet = vpc.create_subnet(
-    CidrBlock='10.0.1.0/24',
-    AvailabilityZone='us-east-2a'
-)
 
-print("Public and private subnets created ...")
-
-###############################################################################
 # Create and attach internet gateway to VPC
 internet_gateway = ec2.create_internet_gateway()
 vpc.attach_internet_gateway(InternetGatewayId=internet_gateway.id)
 
 # Create a route table and a public route
 route_table = vpc.create_route_table()
-route = route_table.create_route(
+
+route_table.create_route(
     DestinationCidrBlock='0.0.0.0/0',
     GatewayId=internet_gateway.id
 )
 
 # Associate the route table with the public subnet
 route_table.associate_with_subnet(SubnetId=public_subnet.id)
-route_table.associate_with_subnet(SubnetId=private_subnet.id)
 
-print("Public subnet reachable from external network  ...")
+print("Public subnet created ...")
+
+###############################################################################
+# Create private subnet
+private_subnet = vpc.create_subnet(
+    CidrBlock='10.0.1.0/24',
+    AvailabilityZone='us-east-2a'
+)
+
+# Create an elastic IP for the NAT gateway
+gw_elastic_ip = client.allocate_address(Domain='vpc')
+
+# Create a gateway in the public subnet. This gateway is used by EC2 private
+# instance (Luigi instance) so it can reach the internet.
+public_gateway = client.create_nat_gateway(
+    AllocationId=gw_elastic_ip['AllocationId'],
+    SubnetId=public_subnet.id,
+)
+
+waiter = client.get_waiter('nat_gateway_available')
+waiter.wait(
+    NatGatewayIds=[
+        public_gateway['NatGateway']['NatGatewayId'],
+    ],
+)
+
+# Create a route table and a public route
+private_route_table = vpc.create_route_table()
+
+private_route_table.create_route(
+    DestinationCidrBlock='0.0.0.0/0',
+    GatewayId= public_gateway['NatGateway']['NatGatewayId']
+)
+
+# Associate the route table with the public subnet
+private_route_table.associate_with_subnet(SubnetId=private_subnet.id)
+
+
+print("Private subnet created  ...")
 
 ###############################################################################
 # Create security groups
@@ -51,10 +82,10 @@ public_sec_group = ec2.create_security_group(
     VpcId=vpc.id)
 
 public_sec_group.authorize_ingress(
-    CidrIp='0.0.0.0/0',
     IpProtocol='tcp',
     FromPort=22,
-    ToPort=22
+    ToPort=22,
+    CidrIp='0.0.0.0/0',
 )
 
 private_sec_group = ec2.create_security_group(
@@ -99,6 +130,14 @@ ec2_instances = ec2.create_instances(
 
 bastion = ec2_instances[0]
 bastion.wait_until_running()
+
+# Create and attach an elastic IP to the bastion
+elastic_ip = client.allocate_address(Domain='vpc')
+client.associate_address(
+    AllocationId=elastic_ip['AllocationId'],
+    InstanceId=bastion.id
+)
+
 print("Bastion created ...")
 
 ###############################################################################
@@ -120,6 +159,21 @@ ec2_instances = ec2.create_instances(
 
 private_ec2 = ec2_instances[0]
 private_ec2.wait_until_running()
+
+private_ec2_description = client.describe_instances(
+    InstanceIds=[private_ec2.id],
+)
+
+# Allowing access from the private EC2 instance to the private security group
+# in port 5432 (postgres)
+private_ec2_ip = private_ec2_description['Reservations'][0]['Instances'][0]['PrivateIpAddress']
+private_sec_group.authorize_ingress(
+    IpProtocol='tcp',
+    FromPort=5432,
+    ToPort=5432,
+    CidrIp=str(private_ec2_ip) + '/32',
+)
+
 print("Private ec2 created ...")
 
 ###############################################################################
@@ -130,9 +184,12 @@ another_private_subnet = vpc.create_subnet(
     AvailabilityZone='us-east-2b'
 )
 
+# Associate the private route table with the private subnet
+private_route_table.associate_with_subnet(SubnetId=another_private_subnet.id)
+
 rds_client.create_db_subnet_group(
     DBSubnetGroupName='dbsubnetgroup_dohmh_nyc',
-    DBSubnetGroupDescription='Private database subnet group for dohmh_nyc database',
+    DBSubnetGroupDescription='Private db subnet group for dohmh_nyc database',
     SubnetIds=[private_subnet.id, another_private_subnet.id]
 )
 
@@ -155,7 +212,7 @@ private_db = rds_client.create_db_instance(
     EngineVersion='11.6',
     AutoMinorVersionUpgrade=False,
     LicenseModel='postgresql-license',
-    PubliclyAccessible=True,
+    PubliclyAccessible=False,
     Tags=[
         {
             'Key': 'description',
@@ -172,28 +229,24 @@ private_db = rds_client.create_db_instance(
     MaxAllocatedStorage=1000
 )
 
-print("Private database created ...")
-
-###############################################################################
-# Create and attach an elastic IP to the bastion
-
-elastic_ip = client.allocate_address(Domain='vpc')
-response = client.associate_address(
-    AllocationId=elastic_ip['AllocationId'],
-    InstanceId=bastion.id
+waiter = rds_client.get_waiter('db_instance_available')
+waiter.wait(
+    DBInstanceIdentifier=private_db['DBInstance']['DBInstanceIdentifier']
 )
 
-print(private_db)
-print('###############################################################################')
-print(private_db['DBInstance'])
-# TODO: WAIT UNTIL READY (DB)
+private_db_description = rds_client.describe_db_instances(
+    DBInstanceIdentifier=private_db['DBInstance']['DBInstanceIdentifier'],
+)
+
+print("Private database created ...")
 
 ###############################################################################
 # Write aws data into a json file
 try:
     data_dict = {
         'elastic_ip': elastic_ip['PublicIp'],
-        'private_db_endpoint': private_db['DBInstance']['Endpoint']
+        'private_ec2_ip': private_ec2_ip,
+        'private_db_endpoint': private_db_description['DBInstances'][0]['Endpoint']
     }
     with open('bastion_data.json', 'w') as file:
         json.dump(data_dict, file)
